@@ -12,7 +12,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "grammy": "^1.18.1"
+    "dotenv": "^16.3.1",
+    "grammy": "^1.18.1",
+    "license": "^1.0.3"
   },
   "devDependencies": {
     "@types/node": "^20.5.9"
