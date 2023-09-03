@@ -3,20 +3,28 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "start": "node ./src/bot.js",
-    "dev": "nodemon ./src/bot.js"
+    "dev": "nodemon ./src/bot.js",
+    "tsc": "tsc"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@grammyjs/menu": "^1.2.1",
+    "@grammyjs/storage-firestore": "^2.3.1",
+    "@grammyjs/storage-free": "^2.3.1",
+    "anki-apkg-export": "^4.0.3",
     "dotenv": "^16.3.1",
+    "flatted": "^3.2.7",
     "grammy": "^1.18.1",
-    "license": "^1.0.3"
+    "license": "^1.0.3",
+    "openai": "^4.4.0"
   },
   "devDependencies": {
-    "@types/node": "^20.5.9"
+    "@types/node": "^20.5.9",
+    "typescript": "^5.2.2"
   }
 }
