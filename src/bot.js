@@ -9,7 +9,7 @@ const path = require('path');
 const { Bot, InputFile, Context, session, SessionFlavor } = require("grammy");
 const { Menu } = require("@grammyjs/menu");
 const { freeStorage } = require("@grammyjs/storage-free");
-const { parse, stringify } = require('flatted');
+
 
 const fs = require('fs');
 const AnkiExport = require('anki-apkg-export').default;
@@ -25,33 +25,88 @@ const bot = new Bot(process.env.TELEGRAM_KEY); // <-- put your bot token between
 
 
 bot.use(session({
-    initial: () => ({
-        deck: { "temp": "temp" },
-        deck_name: "temp",
-    }), storage: freeStorage(bot.token),
+    type: "multi",
+    std: {                              //stored
+        initial: () => ({
+            deck: { "temp": "temp" },
+            deck_name: "temp",
+            language: "Deutsch",
+
+        }), storage: freeStorage(bot.token),
+    },
+
+    nstd: {                             //not stored
+        initial: () => ({
+            started: false,
+
+        })
+    }
+
 }));
 
 // variables
-var apkg;
+
+var apkg = new AnkiExport("temp");
 var filename = "temp"
 var filepath = path.resolve('tmp', `${filename}.apkg`);
-const menu = new Menu("my-menu-identifier")
-    .text("A", (ctx) => ctx.reply("You pressed A!")).row()
-    .text("B", (ctx) => ctx.reply("You pressed B!"));
+// const menu = new Menu("my-menu-identifier")
+//     .text("A", (ctx) => ctx.reply("You pressed A!")).row()
+//     .text("B", (ctx) => ctx.reply("You pressed B!"));
 
 // manu.
-bot.use(menu);
+// bot.use(menu);
 
 //comands
 bot.command("start", async (ctx) => {
-    ctx.session.deck = {}
+
 
     try {
-        await ctx.reply(`Welcome, ${ctx.from.first_name || ctx.from.username}!`)
-        await ctx.reply(`Your session id is ${ctx.chat.id}!`) // { reply_markup: menu }
+        if (ctx.session.std.deck_name == "temp" && !ctx.session.nstd.started) {
+
+            await ctx.reply(`Welcome, ${ctx.from.first_name || ctx.from.username}!`)
+            await ctx.reply(`I will help you to learn any language of your choice. Just send me the word that you don't understand and i will make an anki card with a definition of it and examples.
+Use /language to set the language that you learn<i>(default: German)</i>`, { parse_mode: "HTML", })
+            await ctx.reply(`<i>☁️ Your session id is ${ctx.chat.id}</i>`, { parse_mode: "HTML", }) // { reply_markup: menu }
+            await ctx.reply("🐢 Write <b>/new [deck name]</b> to create a new deck!", { parse_mode: "HTML", })
+            ctx.session.nstd.started = true;
+
+        }
+        else if (Object.keys(ctx.session.std.deck).length === 0) {
+            await ctx.reply(`Hi, ${ctx.from.first_name || ctx.from.username}.`)
+            await ctx.reply(`🐢 Write your words as a <b>message</b> to add cards to your old deck<i>(${ctx.session.std.deck_name}.apkg)</i> or use <b>/new [deck name]</b> to create a new deck!`, { parse_mode: "HTML", })
+            ctx.session.nstd.started = true;
+        }
+        else {
+            if (!ctx.session.nstd.started) {
+
+                await ctx.reply(`Check out new update on my <a href="https://github.com/mishaqq/anki_helperbot">github</a>`, { parse_mode: "HTML", })
+                await ctx.reply(`<i>☁️ Deck <b>${ctx.session.std.deck_name}</b> is loading...</i>`, { parse_mode: "HTML", })
+                apkg = await new AnkiExport(ctx.session.std.deck_name);
+                for (var back in ctx.session.std.deck) {
+                    if (back == "temp") { continue; }
+                    var front = ctx.session.std.deck[back];
+                    await apkg.addCard(back, front);
+                    //await ctx.reply(`${back} : ${front}`)
+                }
+                await ctx.reply(`🦐 Deck <b>${ctx.session.std.deck_name}</b> is loaded.\n⛩️ Write your words as a <b>message</b> to add cards!\n<b>🏮 One word(or a sentence) = One message</b>`, { parse_mode: "HTML", })
+                ctx.session.nstd.started = true;
+            }
+            else {
+                await ctx.reply(`<i>🐢 Gotchu</i>`, { parse_mode: "HTML", })
+            }
+
+
+
+        }
+
+
+        // await ctx.reply(`Welcome, ${ctx.from.first_name || ctx.from.username}!`)
+        // await ctx.reply(`<i>Your session id is ${ctx.chat.id}</i>`, { parse_mode: "HTML", }) // { reply_markup: menu }
+        // await ctx.reply("Write <b>/new [deck name]</b> to create a new deck!", { parse_mode: "HTML", })
+
     }
     catch (err) {
-        await ctx.reply(`😨 Ooops...\n🟢 <b>Try to <i>/restart</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
+        await ctx.reply(`😨 Ooops...\n🟢 <b>Try to create <i>/new</i> or <i>/start</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
     }
 
     //const text = await chatGPT();
@@ -63,57 +118,70 @@ bot.command("start", async (ctx) => {
 });
 
 
-bot.command("restart", async (ctx) => {
+// bot.command("restart", async (ctx) => {
 
 
 
 
-    //const text = await chatGPT();
-    // await ctx.reply(`GPTChat Message: ${text.content}`)
+//     //const text = await chatGPT();
+//     // await ctx.reply(`GPTChat Message: ${text.content}`)
 
 
-    try {
-        for (var card in ctx.session.deck) {
-            var value = ctx.session.deck[card];
-            await ctx.reply(`${card} : ${value}`)
+//     try {
+//         if (ctx.session.std.deck_name == "temp" || ctx.session.std.deck_name == "deleted") {
 
-            // do something with "key" and "value" variables
-        }
+//             await ctx.reply(`<i>🏮 You don't have any decks to delete...</i>\nWrite <b>/new [deck name]</b> to create a new deck first`, { parse_mode: "HTML", });
+//         }
+//         else {
 
-        await ctx.reply(`<i>📡 Restarting...</i>`, { parse_mode: "HTML", });
+//             await ctx.reply(`<i>📡 Deleting deck <b>${ctx.session.std.deck_name}</b>....</i>`, { parse_mode: "HTML", });
+
+//             ctx.session.std.deck = {}
+//             ctx.session.std.deck_name = "deleted"
+//             apkg = await new AnkiExport(ctx.session.std.deck_name);
+//             await ctx.reply("🐢 Done.\n\nWrite <b>/new [deck name]</b> to create a new deck.", { parse_mode: "HTML", })
+//         }
 
 
-        apkg = await new AnkiExport(ctx.session.deck_name);
-        await ctx.reply("🟢 Done.\n\nWrite <b>/new [deck name]</b> to create a new deck.")
-
-    } catch (err) {
-        await ctx.reply(`😨 Ooops...\n🟢 <b>Try to <i>/restart</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
-    }
-});
+//     } catch (err) {
+//         await ctx.reply(`😨 Ooops...\n🟢 <b>Try to <i>/restart</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
+//     }
+// });
 
 bot.command("download", async (ctx) => {
 
     try {
-        await ctx.reply(`<i>🗻 Creating ${apkg}.apkg...</i>`, { parse_mode: "HTML", });
-        await save(apkg, ctx.session.deck_name);
-
-        const sendDocumentPromise = new Promise((resolve, reject) => {
-            setTimeout(() => {
-                filepath = path.resolve('tmp', `${ctx.session.deck_name}.apkg`);
-                bot.api.sendDocument(ctx.chat.id, new InputFile(filepath))
-                    .then(() => resolve())
-                    .catch(reject);
-            }, 1000);
-        });
-
-        // Wait for the sendDocumentPromise to resolve before replying
-        await sendDocumentPromise;
+        if (ctx.session.std.deck_name == "temp") {
 
 
-        await ctx.reply("📖 Good luck by learning!")
-        fs.unlinkSync(filepath);
+            await ctx.reply(`<i>🏮 You don't have any decks to download...</i>\n\n⛩️ Write <b>/new [deck name]</b> to create a new deck first`, { parse_mode: "HTML", });
+
+        } else if (!ctx.session.nstd.started) {
+            await ctx.reply(`<i>🏮 Anki AI was updated...</i>\n🐢 Write <b>/start</b> to load your old deck<i>(${ctx.session.std.deck_name}.apkg)</i> or use <b>/new \n[deck name]</b> to create a new one.\n<i>(your old deck will be deleted in ths case)</i>`, { parse_mode: "HTML", });
+
+        } else {
+            await ctx.reply(`<i>🗻 Creating <b>${ctx.session.std.deck_name}.apkg...</b></i>`, { parse_mode: "HTML", });
+            await save(apkg, ctx.session.std.deck_name);
+
+            const sendDocumentPromise = new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    filepath = path.resolve('tmp', `${ctx.session.std.deck_name}.apkg`);
+                    bot.api.sendDocument(ctx.chat.id, new InputFile(filepath))
+                        .then(() => resolve())
+                        .catch(reject);
+                }, 1000);
+            });
+
+            // Wait for the sendDocumentPromise to resolve before replying
+            await sendDocumentPromise;
+
+
+            await ctx.reply("📖 Good luck by learning!")
+            fs.unlinkSync(filepath);
+        }
+
     } catch (err) {
-        await ctx.reply(`😨 Ooops...\n🟢 <b>Try to <i>/restart</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
+        await ctx.reply(`😨 Ooops...\n🟢<b>Try to create <i>/new</i> or <i>/start</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
     }
 
 
@@ -123,21 +191,36 @@ bot.command("download", async (ctx) => {
 bot.command("new", async (ctx) => {
     // `item` will be "apple pie" if a user sends "/add apple pie".
     try {
-        ctx.session.deck_name = ctx.match;
-        var item = ctx.session.deck_name;
+        ctx.session.std.deck = {}
+        ctx.session.std.deck_name = ctx.match;
+        var item = ctx.session.std.deck_name;
         if (item) {
             const filename = item.trim().replaceAll(" ", "_");
 
             apkg = await new AnkiExport(filename);
-            await ctx.reply(`🦐 Your new deck <b>⛩️ ${filename}</b> is created. \nWrite your words as a message to add cards!\n<b>🏮 One word(or a sentence) = One message</b>`, { parse_mode: "HTML", })
+            await ctx.reply(`🦐 Your new deck <b>${filename}</b> is created. \n⛩️ Write your words as a <b>message</b> to add cards!\n<b>🏮 One word(or a sentence) = One message.</b>`, { parse_mode: "HTML", })
         }
         else { await ctx.reply(`<i>🏮 Please include <b>name</b> of the deck...</i>`, { parse_mode: "HTML", }); }
     } catch (err) {
-        await ctx.reply(`😨 Ooops...\n🟢 <b>Try to <i>/restart</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
+        await ctx.reply(`😨 Ooops...\n🟢 <b>Try to create <i>/new</i> or <i>/start</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
     }
 
+});
 
 
+bot.command("language", async (ctx) => {
+    // `item` will be "apple pie" if a user sends "/add apple pie".
+    try {
+
+        if (ctx.match) {
+            ctx.session.std.language = ctx.match;
+            await ctx.reply(`<i>🏮 The language has been changed to <b>${ctx.session.std.language}</b>...</i>`, { parse_mode: "HTML", });
+        }
+        else { await ctx.reply(`<i>🏮 Please include <b>language</b> after /langauge (e.g. German, English, etc.)...</i>`, { parse_mode: "HTML", }); }
+
+    } catch (err) {
+        await ctx.reply(`😨 Ooops...\n🟢 <b>Try to create <i>/new</i> or <i>/start</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
+    }
 
 });
 
@@ -146,30 +229,43 @@ bot.command("new", async (ctx) => {
 bot.on("message:text", async (ctx) => {
     // Text is always defined because this handler is called when a text message is received.
     try {
-
-        const front_side = ctx.msg.text;
-        await ctx.reply("<i>☁️ Sending request to ChatGPT...</i>", { parse_mode: "HTML", });
-        const back_side_primose = "test text"; //await chatGPT(front_side)
-
-        const back_side = back_side_primose; //await back_side_primose.content
-        ctx.session.deck[front_side] = back_side;
-        // await ctx.reply(`GPTChat Message: ${text.content}`)
-
-        await apkg.addCard(front_side, back_side);
+        if ("temp" in ctx.session.std.deck) {
 
 
-        //await ctx.session.deck.save();
-        await ctx.reply("<i>🎴 Creating a card...</i>", { parse_mode: "HTML", });
+            await ctx.reply(`<i>🏮 Please create a new deck first...</i>`, { parse_mode: "HTML", });
 
-        await ctx.reply(`<i>🀄 Front:</i> ${front_side}\n<i>🃏 Back:</i> ${back_side}`, { parse_mode: "HTML", });
-        await ctx.reply("🟢 Done.")
+        } else if (!ctx.session.nstd.started) {
+            await ctx.reply(`<i>🏮 Anki AI has been updated...</i>\n🐢 Write <b>/start</b> to load your old deck<i>(${ctx.session.std.deck_name}.apkg)</i> or use <b>/new \n[deck name]</b> to create a new one.\n<i>(your old deck will be deleted in ths case)</i>`, { parse_mode: "HTML", });
 
-        //await ctx.replyWithDocument('./output.apkg');
-        //bot.api.sendDocument(ctx.chat.id, new InputFile("./output.apkg"))
-        //new fs.InputFile("./output.apkg");
+        } else {
+            const front_side = ctx.msg.text;
+            await ctx.reply("<i>☁️ Sending request to ChatGPT...</i>", { parse_mode: "HTML", });
+            const back_side_primose = await chatGPT(front_side, ctx.session.std.language); //await chatGPT(front_side, ctx)
+
+            const back_side = await back_side_primose.content; //await back_side_primose.content
+            ctx.session.std.deck[front_side] = back_side;
+            // await ctx.reply(`GPTChat Message: ${text.content}`)
+
+            await apkg.addCard(front_side, back_side);
+
+
+            //await ctx.session.std.deck.save();
+            await ctx.reply("<i>🎴 Creating a card...</i>", { parse_mode: "HTML", });
+
+            await ctx.reply(`<i>🀄 Front:</i> ${front_side}\n<i>🃏 Back:</i> ${back_side}`, { parse_mode: "HTML", });
+            await ctx.reply(`📗 New card has been added to deck <b>${filename}</b>`, { parse_mode: "HTML", });
+
+            //await ctx.replyWithDocument('./output.apkg');
+            //bot.api.sendDocument(ctx.chat.id, new InputFile("./output.apkg"))
+            //new fs.InputFile("./output.apkg");
+
+        }
+
+
+
     }
     catch (err) {
-        await ctx.reply(`😨 Ooops...\n🟢 <b>Try to <i>/restart</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
+        await ctx.reply(`😨 Ooops...\n🟢 <b>Try to create <i>/new</i> or <i>/start</i></b>\n<i>❌ ${err}</i>`, { parse_mode: "HTML", });
     }
 
 });
