@@ -9,18 +9,18 @@ const path = require('path');
 const { Bot, InputFile, Context, session, SessionFlavor, webhookCallback } = require("grammy");
 const { Menu } = require("@grammyjs/menu");
 const { freeStorage } = require("@grammyjs/storage-free");
+const { limit } = require("@grammyjs/ratelimiter");
 
 const fs = require('fs');
 const AnkiExport = require('anki-apkg-export').default;
 var { chatGPT } = require('./chatgpt.js');
-const express = require("express");
+var { contain } = require('./admin_check.js');
 require('dotenv').config();
 
 
 // bot and express declaration
-const app = express();
+
 const bot = new Bot(process.env.TELEGRAM_KEY);
-const port = 8000;
 
 // sesions code
 
@@ -31,6 +31,7 @@ bot.use(session({
             deck: { "temp": "temp" },
             deck_name: "temp",
             language: "Deutsch",
+            free_cards: 100,
 
         }), storage: freeStorage(bot.token),
     },
@@ -43,6 +44,32 @@ bot.use(session({
     }
 
 }));
+
+
+
+//ratellimiter
+
+
+////     Use it with webhook
+
+// bot.use(
+//     limit({
+    
+//       timeFrame: 1000,
+//       limit: 1,
+  
+      
+//       onLimitExceeded: async (ctx) => {
+//         await ctx.reply("Not so fast, my frendo!");
+//       },
+  
+    
+//       keyGenerator: (ctx) => {
+//         return ctx.from?.id.toString();
+//       },
+//     })
+// );
+  
 
 // variables
 
@@ -86,17 +113,15 @@ Use /language to set the language that you learn<i>(default: German)</i>`, { par
                 await ctx.reply(`Check out new update on my <a href="https://github.com/mishaqq/anki_helperbot">github</a>`, { parse_mode: "HTML", })
                 await ctx.reply(`<i>☁️ Deck <b>${ctx.session.std.deck_name}</b> is loading...</i>`, { parse_mode: "HTML", })
                 apkg = await new AnkiExport(ctx.session.std.deck_name);
-                for (var back in ctx.session.std.deck) {
-                    if (back == "temp") { continue; }
-                    var front = ctx.session.std.deck[back];
-                    await apkg.addCard(back, front);
-                    //await ctx.reply(`${back} : ${front}`)
-                }
+               
                 await ctx.reply(`🦐 Deck <b>${ctx.session.std.deck_name}</b> is loaded.\n⛩️ Write your words as a <b>message</b> to add cards!\n<b>🏮 One word(or a sentence) = One message</b>`, { parse_mode: "HTML", })
                 ctx.session.nstd.started = true;
+          
+               
             }
             else {
                 await ctx.reply(`<i>🐢 Gotchu</i>`, { parse_mode: "HTML", })
+              
             }
 
 
@@ -152,6 +177,8 @@ Use /language to set the language that you learn<i>(default: German)</i>`, { par
 //     }
 // });
 
+
+
 bot.command("download", async (ctx) => {
 
     try {
@@ -165,6 +192,12 @@ bot.command("download", async (ctx) => {
 
         } else {
             await ctx.reply(`<i>🗻 Creating <b>${ctx.session.std.deck_name}.apkg...</b></i>`, { parse_mode: "HTML", });
+            for (var back in ctx.session.std.deck) {
+                if (back == "temp") { continue; }
+                var front = ctx.session.std.deck[back];
+                await apkg.addCard(back, front);
+                //await ctx.reply(`${back} : ${front}`)
+            }
             await save(apkg, ctx.session.std.deck_name);
 
             const sendDocumentPromise = new Promise((resolve, reject) => {
@@ -233,7 +266,7 @@ bot.command("language", async (ctx) => {
 bot.on("message:text", async (ctx) => {
     // Text is always defined because this handler is called when a text message is received.
     try {
-        if ("temp" in ctx.session.std.deck) {
+        if ("temp" in ctx.session.std.deck ) {
 
 
             await ctx.reply(`<i>🏮 Please create a new deck first...</i>`, { parse_mode: "HTML", });
@@ -241,12 +274,16 @@ bot.on("message:text", async (ctx) => {
         } else if (!ctx.session.nstd.started) {
             await ctx.reply(`<i>🏮 Anki AI has been updated...</i>\n🐢 Write <b>/start</b> to load your old deck<i>(${ctx.session.std.deck_name}.apkg)</i> or use <b>/new \n[deck name]</b> to create a new one.\n<i>(your old deck will be deleted in ths case)</i>`, { parse_mode: "HTML", });
 
-        } else {
+        } else if (contain(ctx.chat.username, process.env.ADMINS)  || ctx.session.std.free_cards > 0) {
+            ctx.session.std.free_cards = ctx.session.std.free_cards - 1;
+            
+            
+            //console.log(ctx.from.first_name)
             const front_side = ctx.msg.text;
             await ctx.reply("<i>☁️ Sending request to ChatGPT...</i>", { parse_mode: "HTML", });
-            const back_side_primose = await chatGPT(front_side, ctx.session.std.language); //await chatGPT(front_side, ctx)
+            const back_side_primose = 0; //await chatGPT(front_side, ctx) await chatGPT(front_side, ctx.session.std.language)
 
-            const back_side = await back_side_primose.content; //await back_side_primose.content
+            const back_side = "temp"; //await back_side_primose.content
             ctx.session.std.deck[front_side] = back_side;
             // await ctx.reply(`GPTChat Message: ${text.content}`)
 
@@ -257,12 +294,19 @@ bot.on("message:text", async (ctx) => {
             await ctx.reply("<i>🎴 Creating a card...</i>", { parse_mode: "HTML", });
 
             await ctx.reply(`<i>🀄 Front:</i> ${front_side}\n<i>🃏 Back:</i> ${back_side}`, { parse_mode: "HTML", });
-            await ctx.reply(`📗 New card has been added to deck <b>${filename}</b>`, { parse_mode: "HTML", });
+            await ctx.reply(`📗 New card has been added to deck <b>${ctx.session.std.deck_name}</b>`, { parse_mode: "HTML", });
 
             //await ctx.replyWithDocument('./output.apkg');
             //bot.api.sendDocument(ctx.chat.id, new InputFile("./output.apkg"))
             //new fs.InputFile("./output.apkg");
+            console.log(ctx.session.std.free_cards)
 
+        }
+        else {
+           
+            //console.log(contain(process.env.ADMINS, ctx.chat.username));
+            
+            await ctx.reply("<b>🏮 You spend your 100 free cards. To get more cards contact me: t.me/mikaqq</b>", { parse_mode: "HTML", });
         }
 
 
@@ -322,19 +366,38 @@ async function save(ankiObjekt, filename) {
 }
 
 
-// server
 
-if (process.env.NODE_ENV === "production") {
+   // webhook server
+   // 
 
-    const app = express();
-    app.use(express.json());
-    app.use(webhookCallback(bot, "express"));
+//if (process.env.NODE_ENV === "production") {
+//
+//    const app = express();
+//    app.use(express.json());
+//    app.use(webhookCallback(bot, "express"));
+//
+//    const PORT = process.env.PORT || 3000;
+//    app.listen(PORT, () => {
+//        console.log(`Bot listening on port ${PORT}`);
+//    });
+//} else {
+//    bot.start();
+//}
 
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-        console.log(`Bot listening on port ${PORT}`);
-    });
-} else {
 
-    bot.start();
-}
+  // error handler
+
+bot.catch((err) => {
+    const ctx = err.ctx;
+    console.error(`Error while handling update ${ctx.update.update_id}:`);
+    const e = err.error;
+    if (e instanceof GrammyError) {
+      console.error("Error in request:", e.description);
+    } else if (e instanceof HttpError) {
+      console.error("Could not contact Telegram:", e);
+    } else {
+      console.error("Unknown error:", e);
+    }
+  });
+
+bot.start();
