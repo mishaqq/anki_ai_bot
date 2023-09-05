@@ -308,7 +308,7 @@ bot.on("message:text", async (ctx) => {
 // app.use(`/${bot.token}`, webhookCallback(bot, "express"));
 // app.use((_req, res) => res.status(200).send());
 
-app.listen(port, () => console.log(`listening on port ${port}`));
+//app.listen(port, () => console.log(`listening on port ${port}`));
 
 async function save(ankiObjekt, filename) {
     ankiObjekt
@@ -323,6 +323,7 @@ async function save(ankiObjekt, filename) {
 
 
 // server
+
 if (process.env.NODE_ENV === "production") {
 
     const app = express();
