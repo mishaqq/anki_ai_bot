@@ -281,9 +281,9 @@ bot.on("message:text", async (ctx) => {
             //console.log(ctx.from.first_name)
             const front_side = ctx.msg.text;
             await ctx.reply("<i>☁️ Sending request to ChatGPT...</i>", { parse_mode: "HTML", });
-            const back_side_primose = 0; //await chatGPT(front_side, ctx) await chatGPT(front_side, ctx.session.std.language)
+            const back_side_primose = await chatGPT(front_side, ctx.session.std.language); //await chatGPT(front_side, ctx) 
 
-            const back_side = "temp"; //await back_side_primose.content
+            const back_side = await back_side_primose.content; 
             ctx.session.std.deck[front_side] = back_side;
             // await ctx.reply(`GPTChat Message: ${text.content}`)
 
@@ -299,7 +299,7 @@ bot.on("message:text", async (ctx) => {
             //await ctx.replyWithDocument('./output.apkg');
             //bot.api.sendDocument(ctx.chat.id, new InputFile("./output.apkg"))
             //new fs.InputFile("./output.apkg");
-            console.log(ctx.session.std.free_cards)
+            
 
         }
         else {
