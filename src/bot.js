@@ -6,23 +6,23 @@
 // import dotenv from 'dotenv'
 // dotenv.config()
 const path = require('path');
-const { Bot, InputFile, Context, session, SessionFlavor } = require("grammy");
+const { Bot, InputFile, Context, session, SessionFlavor, webhookCallback } = require("grammy");
 const { Menu } = require("@grammyjs/menu");
 const { freeStorage } = require("@grammyjs/storage-free");
-
 
 const fs = require('fs');
 const AnkiExport = require('anki-apkg-export').default;
 var { chatGPT } = require('./chatgpt.js');
+const express = require("express");
 require('dotenv').config();
 
 
-
-
-const bot = new Bot(process.env.TELEGRAM_KEY); // <-- put your bot token between the "" (https://t.me/BotFather)
+// bot and express declaration
+const app = express();
+const bot = new Bot(process.env.TELEGRAM_KEY);
+const port = 8000;
 
 // sesions code
-
 
 bot.use(session({
     type: "multi",
@@ -49,11 +49,15 @@ bot.use(session({
 var apkg = new AnkiExport("temp");
 var filename = "temp"
 var filepath = path.resolve('tmp', `${filename}.apkg`);
+
+
+/// MENU
+
 // const menu = new Menu("my-menu-identifier")
 //     .text("A", (ctx) => ctx.reply("You pressed A!")).row()
 //     .text("B", (ctx) => ctx.reply("You pressed B!"));
 
-// manu.
+
 // bot.use(menu);
 
 //comands
@@ -276,8 +280,9 @@ bot.on("message:text", async (ctx) => {
 
 // });
 
-bot.start();
-
+//bot.start();
+// "express" is also used as default if no argument is given.
+//app.use(webhookCallback(bot, "express"));
 
 //const filepath = path.resolve('tmp', 'test.txt');
 //const content = 'Som!';
@@ -299,6 +304,11 @@ bot.start();
 // apkg.addCard('card #2 front', 'card #2 back', { tags: ['nice', 'better card'] });
 
 
+// app.use(express.json());
+// app.use(`/${bot.token}`, webhookCallback(bot, "express"));
+// app.use((_req, res) => res.status(200).send());
+
+app.listen(port, () => console.log(`listening on port ${port}`));
 
 async function save(ankiObjekt, filename) {
     ankiObjekt
@@ -309,4 +319,21 @@ async function save(ankiObjekt, filename) {
         })
         .catch(err => console.log(err.stack || err));
 
+}
+
+
+// server
+if (process.env.NODE_ENV === "production") {
+
+    const app = express();
+    app.use(express.json());
+    app.use(webhookCallback(bot, "express"));
+
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Bot listening on port ${PORT}`);
+    });
+} else {
+
+    bot.start();
 }
