@@ -1,5 +1,6 @@
 
 module.exports = { contain }
+
 // to add admins in .env variables
 function contain(a, obj) {
     var admin = "";
@@ -17,8 +18,6 @@ function contain(a, obj) {
                 admin = "";
             }
     
-            
-            
         }
 
         if (admin == a && (obj[i + 1] == "|" || i + 1 == obj.length)) {
