@@ -1,4 +1,4 @@
- <h1 align="center"> <img src="https://github.com/mishaqq/anki_ai_bot/assets/78998611/18f7e2cf-009e-4b47-9a5b-1216fa186f6e" alt="License">       Anki AI</h1>
+ <h1 align="center"> <img src="https://github.com/mishaqq/anki_ai_bot/assets/78998611/18f7e2cf-009e-4b47-9a5b-1216fa186f6e" alt="License" width=30>       Anki AI</h1>
 <p align="center">
    <img src="https://img.shields.io/static/v1?label=license&message=MIT&color=white&style=flat" alt="License">
 <br>
